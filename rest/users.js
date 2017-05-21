@@ -1,30 +1,43 @@
+const pg = require('pg-promise')()
 const { ok, created } = require('huncwot/response');
 
-function browse(request) {
-  return ok([
-    { name: 'User 1', age: 11 },
-    { name: 'User 2', age: 21 },
-  ]);
+const db = pg('postgres://localhost:5432/widgets')
+
+async function browse(request) {
+  const results = await db.any('select * from widgets');
+
+  return ok(results);
 }
 
-function read(request) {
-  return ok({ name: 'User 1', age: 11 })
+async function read(request) {
+  const { id } = request.params;
+
+  const result = await db.one('select * from widgets where id = $1', id)
+  return ok(result)
 }
 
-function edit(request) {
-  const { id, name } = request.params;
+async function edit(request) {
+  const { id, name, amount } = request.params;
+
+  await db.none('update widgets set name=$1, amount=$2 where id=$3',
+    [name, amount, id])
 
   return ok({ status: `success: ${id} changed to ${name}` });
 }
 
-function add(request) {
-  const { name } = request.params;
+async function add(request) {
+  const { name, amount } = request.params;
 
-  return created({ status: `success: ${name} created` })
+  await db.none('insert into widgets(name, amount)' +
+    'values(${name}, ${amount})', { name, amount })
+
+  return created({ status: `success: widget ${name}/${amount} created` })
 }
 
-function destroy(request) {
+async function destroy(request) {
   const { id } = request.params;
+
+  await db.result('delete from widgets where id = $1', id)
 
   return ok({ status: `success: ${id} destroyed` })
 }
